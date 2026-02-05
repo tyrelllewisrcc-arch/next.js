@@ -67,6 +67,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::{ecmascript::esm_resolve, resolve_options_context::ResolveOptionsContext};
 
 use crate::{
+    asset_hashes_manifest::AssetHashesManifestAsset,
     dynamic_imports::{
         DynamicImportedChunks, NextDynamicChunkAvailability, collect_next_dynamic_chunks,
     },
@@ -1603,26 +1604,28 @@ impl Endpoint for PageEndpoint {
         async move {
             let output = self.output().await?;
             let output_assets = self.output().output_assets();
+            let project = this.pages_project.project();
+            let node_root = project.node_root().owned().await?;
 
-            let node_root = this.pages_project.project().node_root().owned().await?;
+            let output_assets: Vc<OutputAssets> = if *project.emit_server_side_hashes().await? {
+                let hashes_manifest = Vc::upcast(AssetHashesManifestAsset::new(
+                    node_root.join(&format!(
+                        "server/pages{}/server-hashes.json",
+                        get_asset_prefix_from_pathname(&this.pathname)
+                    ))?,
+                    all_asset_paths(output_assets, node_root.clone()),
+                ));
+                output_assets.concat_asset(hashes_manifest)
+            } else {
+                output_assets
+            };
 
-            let (server_paths, client_paths) = if this
-                .pages_project
-                .project()
-                .next_mode()
-                .await?
-                .is_development()
-            {
+            let (server_paths, client_paths) = if project.next_mode().await?.is_development() {
                 let server_paths = all_asset_paths(output_assets, node_root.clone())
                     .owned()
                     .await?;
 
-                let client_relative_root = this
-                    .pages_project
-                    .project()
-                    .client_relative_path()
-                    .owned()
-                    .await?;
+                let client_relative_root = project.client_relative_path().owned().await?;
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .owned()
                     .await?;
@@ -1661,7 +1664,7 @@ impl Endpoint for PageEndpoint {
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
-                    project: this.pages_project.project().to_resolved().await?,
+                    project: project.to_resolved().await?,
                 }
                 .cell(),
             )

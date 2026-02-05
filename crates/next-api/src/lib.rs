@@ -5,6 +5,7 @@
 
 pub mod analyze;
 mod app;
+mod asset_hashes_manifest;
 mod client_references;
 mod dynamic_imports;
 mod empty;
