@@ -2,6 +2,7 @@ use anyhow::Result;
 use serde::{Serialize, Serializer, ser::SerializeMap};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_hash::encode_hex;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssetsReference},
@@ -45,12 +46,9 @@ impl Asset for AssetHashesManifestAsset {
         let files = self.asset_paths.await?;
 
         #[derive(Serialize)]
-        struct Manifest<'a> {
-            #[serde(serialize_with = "serialize_vec_as_map")]
-            files: &'a Vec<AssetPath>,
-        }
+        struct Manifest<'a>(#[serde(serialize_with = "serialize_vec_as_map")] &'a Vec<AssetPath>);
 
-        let json = serde_json::to_string(&Manifest { files: &files })?;
+        let json = serde_json::to_string(&Manifest(&files))?;
 
         Ok(AssetContent::file(
             FileContent::Content(File::from(json)).cell(),
@@ -64,7 +62,7 @@ where
 {
     let mut map = serializer.serialize_map(Some(list.len()))?;
     for entry in list {
-        map.serialize_entry(&entry.path, &entry.content_hash)?;
+        map.serialize_entry(&entry.path, &encode_hex(entry.content_hash))?;
     }
     map.end()
 }

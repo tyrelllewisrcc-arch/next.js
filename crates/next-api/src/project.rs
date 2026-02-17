@@ -1128,9 +1128,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn emit_server_side_hashes(&self) -> Vc<bool> {
+    pub(super) fn emit_client_hashes(&self) -> Vc<bool> {
+        // TODO
         Vc::cell(true)
-        // Vc::cell(self.is_persistent_caching_enabled)
     }
 
     #[turbo_tasks::function]

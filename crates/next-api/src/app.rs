@@ -2008,18 +2008,18 @@ impl Endpoint for AppEndpoint {
 
         async move {
             let output = self.output();
-            let output_assets = output.output_assets();
-            let output = output.await?;
             let project = this.app_project.project();
             let node_root = project.node_root().owned().await?;
+            let client_relative_root = project.client_relative_path().owned().await?;
 
-            let output_assets: Vc<OutputAssets> = if *project.emit_server_side_hashes().await? {
+            let output_assets = output.output_assets();
+            let output_assets: Vc<OutputAssets> = if *project.emit_client_hashes().await? {
                 let hashes_manifest = Vc::upcast(AssetHashesManifestAsset::new(
                     node_root.join(&format!(
-                        "server/app{}/server-hashes.json",
+                        "server/app{}/client-hashes.json",
                         &self.app_endpoint_entry().await?.original_name
                     ))?,
-                    all_asset_paths(output_assets, node_root.clone()),
+                    all_asset_paths(output_assets, client_relative_root.clone()),
                 ));
                 output_assets.concat_asset(hashes_manifest)
             } else {
@@ -2030,7 +2030,6 @@ impl Endpoint for AppEndpoint {
                 let server_paths = all_asset_paths(output_assets, node_root.clone())
                     .owned()
                     .await?;
-                let client_relative_root = project.client_relative_path().owned().await?;
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .owned()
                     .await?;
@@ -2039,7 +2038,7 @@ impl Endpoint for AppEndpoint {
                 (vec![], vec![])
             };
 
-            let written_endpoint = match *output {
+            let written_endpoint = match *output.await? {
                 AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
                     server_entry_path: node_root
                         .get_path_to(&*rsc_chunk.path().await?)
