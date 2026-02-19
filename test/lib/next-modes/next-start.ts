@@ -1,10 +1,11 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
+import { shouldUseTurbopack } from 'next-test-utils'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -12,6 +13,15 @@ export class NextStartInstance extends NextInstance {
   private _cliOutput: string = ''
 
   private _prerenderFinishedTimeMS: number | null = null
+
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (shouldUseTurbopack() && !('NEXT_DEPLOYMENT_ID' in this.env)) {
+      this.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+      this.env.VERCEL_IMMUTABLE_DEPLOYMENT_ID = 'test-immutable-tkn-7890'
+    }
+  }
 
   public get buildId() {
     return this._buildId
@@ -211,20 +221,22 @@ export class NextStartInstance extends NextInstance {
   }
 
   private getSpawnOpts(
-    env?: Record<string, string>
+    envInput?: Record<string, string>
   ): import('child_process').SpawnOptions {
+    let env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...this.env,
+      ...envInput,
+      NODE_ENV: this.env.NODE_ENV || ('' as any),
+      PORT: this.forcedPort ?? '0',
+      __NEXT_TEST_MODE: 'e2e',
+    }
+
     return {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        ...env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort ?? '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
+      env,
     }
   }
 
