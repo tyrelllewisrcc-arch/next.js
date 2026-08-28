@@ -315,6 +315,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$react-vendoring` - `entry-base.ts` boundaries and vendored React type/runtime rules
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
+- `$agent-fanout` - fan-out/fan-in subagent orchestration: when work is actually parallel-shaped, worker prompt contracts, and synthesis
 
 ## Context-Efficient Workflows
 
